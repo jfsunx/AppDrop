@@ -1,0 +1,57 @@
+{
+  "fill" : "system-light",
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill" : {
+            "linear-gradient" : [
+              "extended-gray:1.00000,1.00000",
+              "extended-gray:1.00000,1.00000"
+            ]
+          },
+          "glass" : true,
+          "image-name" : "Union.svg",
+          "name" : "Union",
+          "position" : {
+            "scale" : 0.24,
+            "translation-in-points" : [
+              0,
+              -65.6015625
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "Vector.svg",
+          "name" : "Vector",
+          "position" : {
+            "scale" : 0.26,
+            "translation-in-points" : [
+              0,
+              0.0001422794807695027
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}
