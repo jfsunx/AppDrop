@@ -4,10 +4,11 @@ struct ResidualScanner {
     private let fileManager = FileManager.default
 
     func makePlan(for app: AppRecord) async -> UninstallPlan {
+        let measuredApp = app.size > 0 ? app : app.withSize(allocatedSize(of: app.url))
         let userItems = uniqueExistingItems(from: userCandidates(for: app), scope: .user)
         let systemItems = uniqueExistingItems(from: systemReviewCandidates(for: app), scope: .systemReview)
         let sensitive = userItems.contains { isSensitivePath($0.path) }
-        return UninstallPlan(app: app, userResiduals: userItems, systemReviewItems: systemItems, containsSensitivePaths: sensitive)
+        return UninstallPlan(app: measuredApp, userResiduals: userItems, systemReviewItems: systemItems, containsSensitivePaths: sensitive)
     }
 
     private func userCandidates(for app: AppRecord) -> [Candidate] {
@@ -20,53 +21,53 @@ struct ResidualScanner {
         for name in names where name.count >= 2 {
             candidates.append(contentsOf: [
                 Candidate(library.appendingPathComponent("Application Support/\(name)"), "Application Support"),
-                Candidate(library.appendingPathComponent("Caches/\(name)"), "缓存"),
-                Candidate(library.appendingPathComponent("Logs/\(name)"), "日志"),
-                Candidate(library.appendingPathComponent("Preferences/\(name)"), "偏好设置"),
-                Candidate(library.appendingPathComponent("Preferences/\(name).plist"), "偏好设置"),
-                Candidate(library.appendingPathComponent("Saved Application State/\(name).savedState"), "窗口状态"),
-                Candidate(library.appendingPathComponent("Services/\(name).workflow"), "服务"),
+                Candidate(library.appendingPathComponent("Caches/\(name)"), L10n.text("缓存", "Caches")),
+                Candidate(library.appendingPathComponent("Logs/\(name)"), L10n.text("日志", "Logs")),
+                Candidate(library.appendingPathComponent("Preferences/\(name)"), L10n.text("偏好设置", "Preferences")),
+                Candidate(library.appendingPathComponent("Preferences/\(name).plist"), L10n.text("偏好设置", "Preferences")),
+                Candidate(library.appendingPathComponent("Saved Application State/\(name).savedState"), L10n.text("窗口状态", "Saved State")),
+                Candidate(library.appendingPathComponent("Services/\(name).workflow"), L10n.text("服务", "Services")),
                 Candidate(library.appendingPathComponent("QuickLook/\(name).qlgenerator"), "Quick Look"),
-                Candidate(library.appendingPathComponent("Internet Plug-Ins/\(name).plugin"), "插件"),
-                Candidate(library.appendingPathComponent("PreferencePanes/\(name).prefPane"), "偏好面板"),
-                Candidate(library.appendingPathComponent("Input Methods/\(name).app"), "输入法"),
-                Candidate(library.appendingPathComponent("Screen Savers/\(name).saver"), "屏幕保护程序"),
-                Candidate(library.appendingPathComponent("Frameworks/\(name).framework"), "框架"),
-                Candidate(home.appendingPathComponent(".config/\(name)"), "配置"),
-                Candidate(home.appendingPathComponent(".cache/\(name)"), "缓存"),
-                Candidate(home.appendingPathComponent(".local/share/\(name)"), "应用数据"),
-                Candidate(home.appendingPathComponent(".\(name)"), "隐藏配置")
+                Candidate(library.appendingPathComponent("Internet Plug-Ins/\(name).plugin"), L10n.text("插件", "Plug-ins")),
+                Candidate(library.appendingPathComponent("PreferencePanes/\(name).prefPane"), L10n.text("偏好面板", "Preference Pane")),
+                Candidate(library.appendingPathComponent("Input Methods/\(name).app"), L10n.text("输入法", "Input Method")),
+                Candidate(library.appendingPathComponent("Screen Savers/\(name).saver"), L10n.text("屏幕保护程序", "Screen Saver")),
+                Candidate(library.appendingPathComponent("Frameworks/\(name).framework"), L10n.text("框架", "Framework")),
+                Candidate(home.appendingPathComponent(".config/\(name)"), L10n.text("配置", "Config")),
+                Candidate(home.appendingPathComponent(".cache/\(name)"), L10n.text("缓存", "Caches")),
+                Candidate(home.appendingPathComponent(".local/share/\(name)"), L10n.text("应用数据", "Application Data")),
+                Candidate(home.appendingPathComponent(".\(name)"), L10n.text("隐藏配置", "Hidden Config"))
             ])
         }
 
         if let bundleID {
             candidates.append(contentsOf: [
                 Candidate(library.appendingPathComponent("Application Support/\(bundleID)"), "Application Support"),
-                Candidate(library.appendingPathComponent("Caches/\(bundleID)"), "缓存"),
-                Candidate(library.appendingPathComponent("Logs/\(bundleID)"), "日志"),
-                Candidate(library.appendingPathComponent("Preferences/\(bundleID).plist"), "偏好设置"),
-                Candidate(library.appendingPathComponent("Preferences/\(bundleID)"), "偏好设置"),
-                Candidate(library.appendingPathComponent("Saved Application State/\(bundleID).savedState"), "窗口状态"),
-                Candidate(library.appendingPathComponent("Containers/\(bundleID)"), "容器"),
+                Candidate(library.appendingPathComponent("Caches/\(bundleID)"), L10n.text("缓存", "Caches")),
+                Candidate(library.appendingPathComponent("Logs/\(bundleID)"), L10n.text("日志", "Logs")),
+                Candidate(library.appendingPathComponent("Preferences/\(bundleID).plist"), L10n.text("偏好设置", "Preferences")),
+                Candidate(library.appendingPathComponent("Preferences/\(bundleID)"), L10n.text("偏好设置", "Preferences")),
+                Candidate(library.appendingPathComponent("Saved Application State/\(bundleID).savedState"), L10n.text("窗口状态", "Saved State")),
+                Candidate(library.appendingPathComponent("Containers/\(bundleID)"), L10n.text("容器", "Container")),
                 Candidate(library.appendingPathComponent("WebKit/\(bundleID)"), "WebKit"),
                 Candidate(library.appendingPathComponent("HTTPStorages/\(bundleID)"), "HTTP Storage"),
                 Candidate(library.appendingPathComponent("HTTPStorages/\(bundleID).binarycookies"), "Cookies"),
                 Candidate(library.appendingPathComponent("Cookies/\(bundleID).binarycookies"), "Cookies"),
-                Candidate(library.appendingPathComponent("Application Scripts/\(bundleID)"), "脚本"),
-                Candidate(library.appendingPathComponent("Autosave Information/\(bundleID)"), "自动保存"),
-                Candidate(library.appendingPathComponent("SyncedPreferences/\(bundleID).plist"), "同步偏好"),
-                Candidate(library.appendingPathComponent("Caches/com.apple.nsurlsessiond/Downloads/\(bundleID)"), "下载缓存")
+                Candidate(library.appendingPathComponent("Application Scripts/\(bundleID)"), L10n.text("脚本", "Scripts")),
+                Candidate(library.appendingPathComponent("Autosave Information/\(bundleID)"), L10n.text("自动保存", "Autosave")),
+                Candidate(library.appendingPathComponent("SyncedPreferences/\(bundleID).plist"), L10n.text("同步偏好", "Synced Preferences")),
+                Candidate(library.appendingPathComponent("Caches/com.apple.nsurlsessiond/Downloads/\(bundleID)"), L10n.text("下载缓存", "Download Cache"))
             ])
 
             candidates.append(contentsOf: byHostPreferences(bundleID: bundleID, library: library))
             candidates.append(contentsOf: launchAgents(bundleID: bundleID, library: library))
             candidates.append(contentsOf: boundaryMatchedChildren(root: library.appendingPathComponent("Group Containers"), bundleID: bundleID, category: "Group Container"))
-            candidates.append(contentsOf: boundaryMatchedChildren(root: library.appendingPathComponent("Containers"), bundleID: bundleID, category: "容器扩展"))
-            candidates.append(contentsOf: boundaryMatchedChildren(root: library.appendingPathComponent("Application Scripts"), bundleID: bundleID, category: "脚本扩展"))
+            candidates.append(contentsOf: boundaryMatchedChildren(root: library.appendingPathComponent("Containers"), bundleID: bundleID, category: L10n.text("容器扩展", "Container Extension")))
+            candidates.append(contentsOf: boundaryMatchedChildren(root: library.appendingPathComponent("Application Scripts"), bundleID: bundleID, category: L10n.text("脚本扩展", "Script Extension")))
             candidates.append(contentsOf: sharedFileLists(bundleID: bundleID, library: library))
         }
 
-        candidates.append(contentsOf: diagnosticReports(for: app, directory: library.appendingPathComponent("Logs/DiagnosticReports"), scopeTitle: "诊断报告"))
+        candidates.append(contentsOf: diagnosticReports(for: app, directory: library.appendingPathComponent("Logs/DiagnosticReports"), scopeTitle: L10n.text("诊断报告", "Diagnostic Report")))
         return candidates
     }
 
@@ -78,34 +79,39 @@ struct ResidualScanner {
 
         for name in names where name.count >= 2 {
             candidates.append(contentsOf: [
-                Candidate(library.appendingPathComponent("Application Support/\(name)"), "系统 Application Support"),
-                Candidate(library.appendingPathComponent("Caches/\(name)"), "系统缓存"),
-                Candidate(library.appendingPathComponent("Logs/\(name)"), "系统日志"),
-                Candidate(library.appendingPathComponent("Preferences/\(name).plist"), "系统偏好"),
-                Candidate(library.appendingPathComponent("Frameworks/\(name).framework"), "系统框架"),
-                Candidate(library.appendingPathComponent("Internet Plug-Ins/\(name).plugin"), "系统插件"),
-                Candidate(library.appendingPathComponent("Input Methods/\(name).app"), "系统输入法"),
-                Candidate(library.appendingPathComponent("QuickLook/\(name).qlgenerator"), "系统 Quick Look"),
-                Candidate(library.appendingPathComponent("PreferencePanes/\(name).prefPane"), "系统偏好面板"),
-                Candidate(library.appendingPathComponent("Screen Savers/\(name).saver"), "系统屏保")
+                Candidate(library.appendingPathComponent("Application Support/\(name)"), L10n.text("系统 Application Support", "System Application Support"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("Caches/\(name)"), L10n.text("系统缓存", "System Caches"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("Logs/\(name)"), L10n.text("系统日志", "System Logs"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("Preferences/\(name).plist"), L10n.text("系统偏好", "System Preferences"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("Frameworks/\(name).framework"), L10n.text("系统框架", "System Framework"), riskLevel: .high),
+                Candidate(library.appendingPathComponent("Internet Plug-Ins/\(name).plugin"), L10n.text("系统插件", "System Plug-in"), riskLevel: .high),
+                Candidate(library.appendingPathComponent("Input Methods/\(name).app"), L10n.text("系统输入法", "System Input Method"), riskLevel: .high),
+                Candidate(library.appendingPathComponent("QuickLook/\(name).qlgenerator"), L10n.text("系统 Quick Look", "System Quick Look"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("PreferencePanes/\(name).prefPane"), L10n.text("系统偏好面板", "System Preference Pane"), riskLevel: .high),
+                Candidate(library.appendingPathComponent("Screen Savers/\(name).saver"), L10n.text("系统屏保", "System Screen Saver"), riskLevel: .requiresAdmin)
             ])
         }
 
         if isReverseDNS(app.bundleIdentifier) {
             let bundleID = app.bundleIdentifier
             candidates.append(contentsOf: [
-                Candidate(library.appendingPathComponent("Application Support/\(bundleID)"), "系统 Application Support"),
-                Candidate(library.appendingPathComponent("LaunchAgents/\(bundleID).plist"), "系统 LaunchAgent"),
-                Candidate(library.appendingPathComponent("LaunchDaemons/\(bundleID).plist"), "系统 LaunchDaemon"),
-                Candidate(library.appendingPathComponent("Preferences/\(bundleID).plist"), "系统偏好"),
-                Candidate(library.appendingPathComponent("Receipts/\(bundleID).bom"), "安装收据"),
-                Candidate(library.appendingPathComponent("Receipts/\(bundleID).plist"), "安装收据"),
-                Candidate(library.appendingPathComponent("Caches/\(bundleID)"), "系统缓存"),
-                Candidate(library.appendingPathComponent("Logs/\(bundleID)"), "系统日志")
+                Candidate(library.appendingPathComponent("Application Support/\(bundleID)"), L10n.text("系统 Application Support", "System Application Support"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("LaunchAgents/\(bundleID).plist"), L10n.text("系统 LaunchAgent", "System LaunchAgent"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("LaunchDaemons/\(bundleID).plist"), L10n.text("系统 LaunchDaemon", "System LaunchDaemon"), riskLevel: .high),
+                Candidate(library.appendingPathComponent("Preferences/\(bundleID).plist"), L10n.text("系统偏好", "System Preferences"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("Receipts/\(bundleID).bom"), L10n.text("安装收据", "Install Receipt"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("Receipts/\(bundleID).plist"), L10n.text("安装收据", "Install Receipt"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("Caches/\(bundleID)"), L10n.text("系统缓存", "System Caches"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("Logs/\(bundleID)"), L10n.text("系统日志", "System Logs"), riskLevel: .requiresAdmin)
             ])
         }
 
-        candidates.append(contentsOf: diagnosticReports(for: app, directory: library.appendingPathComponent("Logs/DiagnosticReports"), scopeTitle: "系统诊断报告"))
+        candidates.append(contentsOf: diagnosticReports(
+            for: app,
+            directory: library.appendingPathComponent("Logs/DiagnosticReports"),
+            scopeTitle: L10n.text("系统诊断报告", "System Diagnostic Report"),
+            riskLevel: .requiresAdmin
+        ))
         return candidates
     }
 
@@ -130,7 +136,8 @@ struct ResidualScanner {
                 title: url.lastPathComponent,
                 category: candidate.category,
                 size: allocatedSize(of: url),
-                scope: scope
+                scope: scope,
+                riskLevel: candidate.riskLevel
             ))
         }
 
@@ -144,7 +151,7 @@ struct ResidualScanner {
         guard let children = try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return [] }
         return children
             .filter { $0.lastPathComponent.hasPrefix(bundleID + ".") && $0.pathExtension == "plist" }
-            .map { Candidate($0, "ByHost 偏好") }
+            .map { Candidate($0, L10n.text("ByHost 偏好", "ByHost Preferences")) }
     }
 
     private func launchAgents(bundleID: String, library: URL) -> [Candidate] {
@@ -172,14 +179,19 @@ struct ResidualScanner {
 
         for case let url as URL in enumerator {
             if url.lastPathComponent == "\(bundleID).sfl4" {
-                result.append(Candidate(url, "最近项目"))
+                result.append(Candidate(url, L10n.text("最近项目", "Recent Items")))
             }
         }
 
         return result
     }
 
-    private func diagnosticReports(for app: AppRecord, directory: URL, scopeTitle: String) -> [Candidate] {
+    private func diagnosticReports(
+        for app: AppRecord,
+        directory: URL,
+        scopeTitle: String,
+        riskLevel: ResidualRiskLevel = .normal
+    ) -> [Candidate] {
         guard let executable = app.executableName, executable.count >= 3 else { return [] }
         guard let children = try? fileManager.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return [] }
 
@@ -189,7 +201,7 @@ struct ResidualScanner {
             let isDiagnostic = ["ips", "crash", "spin", "diag"].contains(url.pathExtension)
             return hasPrefix && isDiagnostic
         }
-        .map { Candidate($0, scopeTitle) }
+        .map { Candidate($0, scopeTitle, riskLevel: riskLevel) }
     }
 
     private func nameVariants(for appName: String) -> [String] {
@@ -311,10 +323,12 @@ struct ResidualScanner {
     private struct Candidate {
         let url: URL
         let category: String
+        let riskLevel: ResidualRiskLevel
 
-        init(_ url: URL, _ category: String) {
+        init(_ url: URL, _ category: String, riskLevel: ResidualRiskLevel = .normal) {
             self.url = url
             self.category = category
+            self.riskLevel = riskLevel
         }
     }
 }

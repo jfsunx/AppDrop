@@ -12,13 +12,13 @@ struct ContentView: View {
                     .tag(app.id)
             }
             .navigationSplitViewColumnWidth(min: 280, ideal: 340)
-            .searchable(text: $model.searchText, prompt: "搜索应用或 Bundle ID")
+            .searchable(text: $model.searchText, prompt: L10n.text("搜索应用或 Bundle ID", "Search apps or bundle IDs"))
             .overlay {
                 if model.isScanning {
-                    ProgressView("正在扫描应用")
+                    ProgressView(L10n.text("正在扫描应用", "Scanning apps"))
                         .padding()
                 } else if model.filteredApps.isEmpty {
-                    ContentUnavailableView("未找到应用", systemImage: "app.dashed")
+                    ContentUnavailableView(L10n.text("未找到应用", "No Apps Found"), systemImage: "app.dashed")
                 }
             }
         } detail: {
@@ -37,27 +37,30 @@ struct ContentView: View {
                 Button {
                     Task { await model.refresh(clearSelection: true) }
                 } label: {
-                    Label("刷新", systemImage: "arrow.clockwise")
+                    Label(L10n.text("刷新", "Refresh"), systemImage: "arrow.clockwise")
                 }
-                .disabled(model.isScanning)
+                .disabled(model.isScanning || model.isUninstalling)
 
                 Button(role: .destructive) {
                     showConfirmation = true
                 } label: {
-                    Label("卸载", systemImage: "trash")
+                    Label(L10n.text("卸载", "Uninstall"), systemImage: "trash")
                 }
-                .disabled(model.plan == nil || model.isPlanning)
+                .disabled(model.plan == nil || model.isPlanning || model.isUninstalling)
             }
         }
-        .alert("移到废纸篓？", isPresented: $showConfirmation, presenting: model.plan) { plan in
-            Button("移到废纸篓", role: .destructive) {
+        .alert(L10n.text("移到废纸篓？", "Move to Trash?"), isPresented: $showConfirmation, presenting: model.plan) { plan in
+            Button(L10n.text("移到废纸篓", "Move to Trash"), role: .destructive) {
                 Task { await model.uninstallSelection() }
             }
-            Button("取消", role: .cancel) {}
+            Button(L10n.text("取消", "Cancel"), role: .cancel) {}
         } message: { plan in
             let selected = plan.selectedResiduals(model.selectedResidualIDs)
             let systemCount = selected.filter { $0.scope == .systemReview }.count
-            Text("将移除 \(plan.app.displayName) 以及 \(selected.count) 项已勾选残留，其中系统级项目 \(systemCount) 项。")
+            Text(L10n.text(
+                "将移除 \(plan.app.displayName) 以及 \(selected.count) 项已勾选残留，其中系统级项目 \(systemCount) 项。",
+                "This will remove \(plan.app.displayName) and \(selected.count) selected leftover item(s), including \(systemCount) system-level item(s)."
+            ))
         }
     }
 
@@ -73,22 +76,28 @@ struct ContentView: View {
                         )
                     }
 
-                    AppHeader(app: app)
+                    AppHeader(app: model.plan?.app ?? app)
+
+                    if let hint = (model.plan?.app ?? app).installSource.uninstallHint {
+                        SourceHint(text: hint)
+                    }
 
                     if model.isPlanning {
-                        ProgressView("正在分析残留文件")
+                        ProgressView(L10n.text("正在分析残留文件", "Scanning leftover files"))
+                    } else if model.isUninstalling {
+                        ProgressView(L10n.text("正在移到废纸篓", "Moving to Trash"))
                     } else if let plan = model.plan {
                         PlanSummary(plan: plan, selectedResidualIDs: model.selectedResidualIDs)
                         ResidualSection(
-                            title: "用户级残留",
+                            title: L10n.text("用户级残留", "User-Level Leftovers"),
                             items: plan.userResiduals,
-                            emptyText: "未发现用户级残留",
+                            emptyText: L10n.text("未发现用户级残留", "No user-level leftovers found"),
                             selectedIDs: $model.selectedResidualIDs
                         )
                         ResidualSection(
-                            title: "系统级残留",
+                            title: L10n.text("系统级残留", "System-Level Leftovers"),
                             items: plan.systemReviewItems,
-                            emptyText: "未发现系统级残留",
+                            emptyText: L10n.text("未发现系统级残留", "No system-level leftovers found"),
                             selectedIDs: $model.selectedResidualIDs
                         )
                     }
@@ -98,13 +107,43 @@ struct ContentView: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
+
+                    if let result = model.lastResult {
+                        UninstallResultView(result: result)
+                    }
                 }
                 .padding(28)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
-            ContentUnavailableView("选择一个应用", systemImage: "square.stack.3d.up")
+            VStack(spacing: 16) {
+                ContentUnavailableView(L10n.text("选择一个应用", "Select an App"), systemImage: "square.stack.3d.up")
+
+                if let message = model.message {
+                    Text(message)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let result = model.lastResult {
+                    UninstallResultView(result: result)
+                        .frame(maxWidth: 520)
+                }
+            }
+            .padding(28)
         }
+    }
+}
+
+private struct SourceHint: View {
+    let text: String
+
+    var body: some View {
+        Label(text, systemImage: "info.circle")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .padding(10)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -117,9 +156,9 @@ private struct PermissionBanner: View {
             Image(systemName: "lock.shield")
                 .foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 3) {
-                Text("建议开启完全磁盘访问")
+                Text(L10n.text("建议开启完全磁盘访问", "Full Disk Access Recommended"))
                     .font(.headline)
-                Text("部分残留目录当前不可读，开启后扫描会更完整。")
+                Text(L10n.text("部分残留目录当前不可读，开启后扫描会更完整。", "Some leftover folders are not readable. Enabling access makes scans more complete."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -128,7 +167,7 @@ private struct PermissionBanner: View {
             Button {
                 openSettings()
             } label: {
-                Label("打开设置", systemImage: "gear")
+                Label(L10n.text("打开设置", "Open Settings"), systemImage: "gear")
             }
         }
         .padding(12)
@@ -169,8 +208,17 @@ private struct AppHeader: View {
                 Text(app.bundleIdentifier)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                if let source = app.installSource.displayName {
+                    Label(source, systemImage: "shippingbox")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 HStack(spacing: 12) {
-                    Label(Formatters.fileSize(app.size), systemImage: "internaldrive")
+                    Label("\(L10n.text("磁盘占用", "Disk Used")) \(Formatters.fileSize(app.size))", systemImage: "internaldrive")
+                        .help(L10n.text(
+                            "这里显示实际磁盘占用/预计可释放空间，可能小于访达显示的文件表观大小。",
+                            "This shows disk usage / estimated recoverable space, which can be smaller than Finder's apparent file size."
+                        ))
                     if let version = app.version {
                         Label(version, systemImage: "number")
                     }
@@ -195,14 +243,14 @@ private struct PlanSummary: View {
 
     var body: some View {
         HStack(spacing: 20) {
-            Stat(label: "可释放", value: Formatters.fileSize(plan.totalBytes(selectedResidualIDs: selectedResidualIDs)), symbol: "externaldrive.badge.minus")
-            Stat(label: "项目", value: "\(plan.itemCount(selectedResidualIDs: selectedResidualIDs))", symbol: "checklist")
-            Stat(label: "已选系统级", value: "\(selectedSystemCount)", symbol: "exclamationmark.shield")
+            Stat(label: L10n.text("可释放", "Recoverable"), value: Formatters.fileSize(plan.totalBytes(selectedResidualIDs: selectedResidualIDs)), symbol: "externaldrive.badge.minus")
+            Stat(label: L10n.text("项目", "Items"), value: "\(plan.itemCount(selectedResidualIDs: selectedResidualIDs))", symbol: "checklist")
+            Stat(label: L10n.text("已选系统级", "System Selected"), value: "\(selectedSystemCount)", symbol: "exclamationmark.shield")
         }
         .padding(.vertical, 2)
 
         if plan.containsSensitivePaths {
-            Label("检测到可能包含账户、Cookie 或用户资料的路径，请在卸载前复核。", systemImage: "exclamationmark.triangle")
+            Label(L10n.text("检测到可能包含账户、Cookie 或用户资料的路径，请在卸载前复核。", "Some paths may contain account, cookie, or user-profile data. Review them before uninstalling."), systemImage: "exclamationmark.triangle")
                 .font(.callout)
                 .foregroundStyle(.orange)
         }
@@ -278,6 +326,7 @@ private struct ResidualRow: View {
                 Text(item.category)
                     .frame(width: 128, alignment: .leading)
                     .lineLimit(1)
+                RiskBadge(level: item.riskLevel)
                 Text(item.path)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -291,6 +340,77 @@ private struct ResidualRow: View {
         }
         .toggleStyle(.checkbox)
         .padding(.vertical, 7)
+    }
+}
+
+private struct RiskBadge: View {
+    let level: ResidualRiskLevel
+
+    var body: some View {
+        Text(level.displayName)
+            .font(.caption2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .foregroundStyle(foreground)
+            .background(background, in: Capsule())
+    }
+
+    private var foreground: Color {
+        switch level {
+        case .normal:
+            return .secondary
+        case .requiresAdmin:
+            return .orange
+        case .high:
+            return .red
+        }
+    }
+
+    private var background: Color {
+        switch level {
+        case .normal:
+            return .secondary.opacity(0.12)
+        case .requiresAdmin:
+            return .orange.opacity(0.12)
+        case .high:
+            return .red.opacity(0.12)
+        }
+    }
+}
+
+private struct UninstallResultView: View {
+    let result: UninstallResult
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text("卸载结果", "Uninstall Result"))
+                .font(.headline)
+
+            if !result.trashed.isEmpty {
+                Label(L10n.text("已移到废纸篓：\(result.trashed.count) 项", "Moved to Trash: \(result.trashed.count) item(s)"), systemImage: "checkmark.circle")
+                    .foregroundStyle(.secondary)
+            }
+
+            if !result.failed.isEmpty {
+                Label(L10n.text("失败：\(result.failed.count) 项", "Failed: \(result.failed.count) item(s)"), systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+
+                ForEach(Array(result.failed.prefix(5)), id: \.0) { failure in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(failure.0.path)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Text(failure.1)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
 }
 

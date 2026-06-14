@@ -5,12 +5,17 @@ AppDrop is a lightweight native macOS app uninstaller. It helps you remove an ap
 ## Features
 
 - Native macOS interface built with Swift and SwiftUI
+- English and Simplified Chinese UI based on the system language
 - Scans installed apps only when the app list is opened or refreshed
 - Scans leftover files only after you select an app
+- Calculates app size after selection, keeping the initial app list fast
 - Moves selected items to Trash instead of deleting them permanently
 - Shows related user-level files such as preferences, caches, containers, logs, saved state, cookies, and support data
 - Shows system-level leftovers unchecked by default, so you can review and manually select them
-- Filters out Apple/system apps from the uninstall list
+- Labels system-level leftovers by risk, including permission-required and high-risk items
+- Detects apps that appear to come from Homebrew Cask or Setapp and shows a source hint
+- Shows success and failure details after uninstall
+- Shows removable Apple apps while filtering protected system components
 - No background daemon, login item, menu bar agent, analytics, or network service
 
 ## Installation

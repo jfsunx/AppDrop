@@ -18,7 +18,7 @@ enum Formatters {
     }()
 
     static func fileSize(_ bytesValue: Int64) -> String {
-        guard bytesValue > 0 else { return "未知" }
+        guard bytesValue > 0 else { return L10n.text("未知", "Unknown") }
         return bytes.string(fromByteCount: bytesValue)
     }
 }

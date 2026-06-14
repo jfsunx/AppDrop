@@ -17,6 +17,7 @@
 		110000000000000000000008 /* Views/ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000000000000000000108 /* Views/ContentView.swift */; };
 		110000000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000000000000000000109 /* Assets.xcassets */; };
 		11000000000000000000000A /* Services/PermissionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11000000000000000000010A /* Services/PermissionService.swift */; };
+		11000000000000000000000B /* Services/L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11000000000000000000010B /* Services/L10n.swift */; };
 		A5AB9D2C2FDDD980004728E6 /* appdrop.icon in Resources */ = {isa = PBXBuildFile; fileRef = A5AB9D2B2FDDD980004728E6 /* appdrop.icon */; };
 /* End PBXBuildFile section */
 
@@ -32,6 +33,7 @@
 		110000000000000000000108 /* Views/ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ContentView.swift; sourceTree = "<group>"; };
 		110000000000000000000109 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		11000000000000000000010A /* Services/PermissionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/PermissionService.swift; sourceTree = "<group>"; };
+		11000000000000000000010B /* Services/L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/L10n.swift; sourceTree = "<group>"; };
 		A5AB9D2B2FDDD980004728E6 /* appdrop.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = appdrop.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -64,6 +66,7 @@
 				110000000000000000000105 /* Services/ResidualScanner.swift */,
 				110000000000000000000106 /* Services/UninstallService.swift */,
 				11000000000000000000010A /* Services/PermissionService.swift */,
+				11000000000000000000010B /* Services/L10n.swift */,
 				110000000000000000000107 /* Views/AppViewModel.swift */,
 				110000000000000000000108 /* Views/ContentView.swift */,
 				110000000000000000000109 /* Assets.xcassets */,
@@ -158,6 +161,7 @@
 				110000000000000000000005 /* Services/ResidualScanner.swift in Sources */,
 				110000000000000000000006 /* Services/UninstallService.swift in Sources */,
 				11000000000000000000000A /* Services/PermissionService.swift in Sources */,
+				11000000000000000000000B /* Services/L10n.swift in Sources */,
 				110000000000000000000007 /* Views/AppViewModel.swift in Sources */,
 				110000000000000000000008 /* Views/ContentView.swift in Sources */,
 			);
@@ -303,9 +307,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AppDrop;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Inspired by tw93/Mole uninstall heuristics.";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Allows AppDrop to ask Finder to move selected apps to Trash.";
-				MARKETING_VERSION = 0.1.0;
+				INFOPLIST_KEY_NSHumanReadableCopyright = jfsunx;
+				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.jfsunx.AppDrop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -328,9 +332,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AppDrop;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Inspired by tw93/Mole uninstall heuristics.";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Allows AppDrop to ask Finder to move selected apps to Trash.";
-				MARKETING_VERSION = 0.1.0;
+				INFOPLIST_KEY_NSHumanReadableCopyright = jfsunx;
+				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.jfsunx.AppDrop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

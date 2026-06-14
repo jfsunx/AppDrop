@@ -66,14 +66,7 @@ actor ApplicationScanner {
     }
 
     private func makeRecord(for url: URL) -> AppRecord? {
-        let infoURL = url.appendingPathComponent("Contents/Info.plist")
-        guard
-            let data = try? Data(contentsOf: infoURL),
-            let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil),
-            let info = plist as? [String: Any]
-        else {
-            return nil
-        }
+        guard let info = appInfo(for: url) else { return nil }
 
         let fileName = url.deletingPathExtension().lastPathComponent
         let bundleIdentifier = (info["CFBundleIdentifier"] as? String) ?? "unknown"
@@ -92,11 +85,83 @@ actor ApplicationScanner {
             bundleIdentifier: bundleIdentifier,
             executableName: executableName,
             version: version,
-            size: allocatedSize(of: url),
+            size: 0,
             lastModified: values?.contentModificationDate,
             isProtected: protection.isProtected,
-            protectionReason: protection.reason
+            protectionReason: protection.reason,
+            installSource: installSource(for: url, bundleIdentifier: bundleIdentifier)
         )
+    }
+
+    private func appInfo(for url: URL) -> [String: Any]? {
+        let directCandidates = [
+            url.appendingPathComponent("Contents/Info.plist"),
+            url.appendingPathComponent("Info.plist")
+        ]
+
+        for candidate in directCandidates {
+            if let info = loadInfoPlist(at: candidate) {
+                return info
+            }
+        }
+
+        let wrappedBundleURL = url.appendingPathComponent("WrappedBundle")
+        if let destination = try? fileManager.destinationOfSymbolicLink(atPath: wrappedBundleURL.path) {
+            let targetURL: URL
+            if destination.hasPrefix("/") {
+                targetURL = URL(fileURLWithPath: destination)
+            } else {
+                targetURL = url.appendingPathComponent(destination)
+            }
+
+            if let info = appInfoInBundle(at: targetURL.standardizedFileURL) {
+                return info
+            }
+        }
+
+        let wrapperURL = url.appendingPathComponent("Wrapper")
+        guard let children = try? fileManager.contentsOfDirectory(
+            at: wrapperURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return nil
+        }
+
+        for child in children where child.pathExtension == "app" {
+            if let info = appInfoInBundle(at: child) {
+                return info
+            }
+        }
+
+        return nil
+    }
+
+    private func appInfoInBundle(at url: URL) -> [String: Any]? {
+        let candidates = [
+            url.appendingPathComponent("Contents/Info.plist"),
+            url.appendingPathComponent("Info.plist")
+        ]
+
+        for candidate in candidates {
+            if let info = loadInfoPlist(at: candidate) {
+                return info
+            }
+        }
+
+        return nil
+    }
+
+    private func loadInfoPlist(at url: URL) -> [String: Any]? {
+        guard
+            let data = try? Data(contentsOf: url),
+            let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil),
+            let info = plist as? [String: Any]
+        else {
+            return nil
+        }
+
+        return info
     }
 
     private func sanitizedDisplayName(_ value: String, fallback: String) -> String {
@@ -115,52 +180,47 @@ actor ApplicationScanner {
         let path = url.standardizedFileURL.path
 
         if path.hasPrefix("/System/Applications") {
-            return (true, "系统应用受保护")
-        }
-
-        if bundleIdentifier.hasPrefix("com.apple.") {
-            return (true, "Apple 系统组件受保护")
+            return (true, L10n.text("系统应用受保护", "System app is protected"))
         }
 
         let critical = [
-            "loginwindow", "dock", "finder", "systempreferences", "systemsettings",
-            "controlcenter", "backgroundtaskmanagement", "tcc"
+            "com.apple.safari", "loginwindow", "dock", "finder", "systempreferences",
+            "systemsettings", "controlcenter", "backgroundtaskmanagement", "tcc"
         ]
 
         let normalized = bundleIdentifier.lowercased()
         if critical.contains(where: { normalized.contains($0) }) {
-            return (true, "关键系统组件受保护")
+            return (true, L10n.text("关键系统组件受保护", "Critical system component is protected"))
         }
 
         return (false, nil)
     }
 
-    private func allocatedSize(of url: URL) -> Int64 {
-        var total: Int64 = 0
-        let keys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey, .fileAllocatedSizeKey, .totalFileAllocatedSizeKey]
+    private func installSource(for url: URL, bundleIdentifier: String) -> AppInstallSource {
+        let path = url.standardizedFileURL.path
+        let resolvedPath = url.resolvingSymlinksInPath().standardizedFileURL.path
+        let home = fileManager.homeDirectoryForCurrentUser.standardizedFileURL.path
 
-        if let values = try? url.resourceValues(forKeys: keys),
-           let totalSize = values.totalFileAllocatedSize,
-           totalSize > 0 {
-            total += Int64(totalSize)
+        if path.hasPrefix("\(home)/Library/Application Support/Setapp/Applications") ||
+            resolvedPath.hasPrefix("\(home)/Library/Application Support/Setapp/Applications") {
+            return .setapp
         }
 
-        guard let enumerator = fileManager.enumerator(
-            at: url,
-            includingPropertiesForKeys: Array(keys),
-            options: [],
-            errorHandler: nil
-        ) else {
-            return total
+        if let caskName = caskName(from: resolvedPath) ?? caskName(from: path) {
+            return .homebrewCask(caskName)
         }
 
-        for case let item as URL in enumerator {
-            guard let values = try? item.resourceValues(forKeys: keys) else { continue }
-            if values.isRegularFile == true {
-                total += Int64(values.fileAllocatedSize ?? values.totalFileAllocatedSize ?? 0)
-            }
+        if bundleIdentifier.hasPrefix("com.apple.") {
+            return .apple
         }
 
-        return total
+        return .regular
+    }
+
+    private func caskName(from path: String) -> String? {
+        guard let range = path.range(of: "/Caskroom/") else { return nil }
+        let rest = path[range.upperBound...]
+        guard let firstComponent = rest.split(separator: "/").first else { return nil }
+        return String(firstComponent)
     }
 }

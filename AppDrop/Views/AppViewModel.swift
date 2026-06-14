@@ -7,6 +7,7 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var plan: UninstallPlan?
     @Published private(set) var isScanning = false
     @Published private(set) var isPlanning = false
+    @Published private(set) var isUninstalling = false
     @Published private(set) var message: String?
     @Published private(set) var lastResult: UninstallResult?
     @Published private(set) var permissionStatus = PermissionStatus.allowed
@@ -19,6 +20,7 @@ final class AppViewModel: ObservableObject {
     private let uninstallService = UninstallService()
     private let permissionService = PermissionService()
     private var planScanToken = UUID()
+    private var permissionCheckedAt: Date?
 
     var filteredApps: [AppRecord] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -41,7 +43,7 @@ final class AppViewModel: ObservableObject {
         lastResult = nil
         plan = nil
         selectedResidualIDs.removeAll()
-        permissionStatus = permissionService.checkPrivacyAccess()
+        updatePermissionStatus()
 
         let scanned = await appScanner.scanInstalledApps()
         apps = scanned
@@ -55,6 +57,17 @@ final class AppViewModel: ObservableObject {
 
     func openFullDiskAccessSettings() {
         permissionService.openFullDiskAccessSettings()
+    }
+
+    func updatePermissionStatus(force: Bool = false) {
+        if !force,
+           let permissionCheckedAt,
+           Date().timeIntervalSince(permissionCheckedAt) < 10 {
+            return
+        }
+
+        permissionStatus = permissionService.checkPrivacyAccess()
+        permissionCheckedAt = Date()
     }
 
     func preparePlanForSelection() async {
@@ -74,7 +87,12 @@ final class AppViewModel: ObservableObject {
         selectedResidualIDs.removeAll()
         let nextPlan = await residualScanner.makePlan(for: app)
 
-        guard planScanToken == token, selectedAppID == app.id else { return }
+        guard planScanToken == token, selectedAppID == app.id else {
+            if planScanToken == token {
+                isPlanning = false
+            }
+            return
+        }
         plan = nextPlan
         selectedResidualIDs = Set(nextPlan.userResiduals.map(\.id))
         isPlanning = false
@@ -83,17 +101,29 @@ final class AppViewModel: ObservableObject {
     func uninstallSelection() async {
         guard let currentPlan = plan else { return }
 
+        isUninstalling = true
+        defer { isUninstalling = false }
+
         do {
             let selectedResiduals = currentPlan.selectedResiduals(selectedResidualIDs)
             let result = try await uninstallService.uninstall(currentPlan, selectedResiduals: selectedResiduals)
 
             let statusMessage: String
             if result.failed.isEmpty {
-                statusMessage = "已移到废纸篓：\(result.trashed.count) 项"
+                statusMessage = L10n.text(
+                    "已移到废纸篓：\(result.trashed.count) 项",
+                    "Moved to Trash: \(result.trashed.count) item(s)"
+                )
             } else if let firstFailure = result.failed.first {
-                statusMessage = "部分项目未能移到废纸篓：\(result.failed.count) 项。\(firstFailure.0.lastPathComponent)：\(firstFailure.1)"
+                statusMessage = L10n.text(
+                    "部分项目未能移到废纸篓：\(result.failed.count) 项。\(firstFailure.0.lastPathComponent)：\(firstFailure.1)",
+                    "Some items could not be moved to Trash: \(result.failed.count). \(firstFailure.0.lastPathComponent): \(firstFailure.1)"
+                )
             } else {
-                statusMessage = "部分项目未能移到废纸篓：\(result.failed.count) 项"
+                statusMessage = L10n.text(
+                    "部分项目未能移到废纸篓：\(result.failed.count) 项",
+                    "Some items could not be moved to Trash: \(result.failed.count)"
+                )
             }
 
             await refresh(clearSelection: true)
