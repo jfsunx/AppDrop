@@ -74,21 +74,12 @@ AppDrop is intentionally conservative:
 
 Open `AppDrop.xcodeproj` in Xcode and run the `AppDrop` scheme.
 
-## Assets
-
-The README uses these image paths:
-
-- `demo/logo.png`
-- `demo/main.png`
-
 ## Star History
 
-Replace `OWNER/AppDrop` with your GitHub repository path after publishing.
-
-<a href="https://www.star-history.com/#jfsunx/AppDrop&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=jfsunx/AppDrop&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=jfsunx/AppDrop&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=jfsunx/AppDrop&type=Date" />
-  </picture>
+<a href="https://www.star-history.com/?repos=jfsunx%2FAppDrop&type=date&legend=bottom-right">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=jfsunx/AppDrop&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=jfsunx/AppDrop&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=jfsunx/AppDrop&type=date&legend=top-left" />
+ </picture>
 </a>
