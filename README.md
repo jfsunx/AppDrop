@@ -85,10 +85,10 @@ The README uses these image paths:
 
 Replace `OWNER/AppDrop` with your GitHub repository path after publishing.
 
-<a href="https://www.star-history.com/#OWNER/AppDrop&Date">
+<a href="https://www.star-history.com/#jfsunx/AppDrop&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=OWNER/AppDrop&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=OWNER/AppDrop&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=OWNER/AppDrop&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=jfsunx/AppDrop&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=jfsunx/AppDrop&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=jfsunx/AppDrop&type=Date" />
   </picture>
 </a>
