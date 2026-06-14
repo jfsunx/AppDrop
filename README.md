@@ -1,28 +1,44 @@
 # AppDrop
 
-AppDrop is a lightweight native macOS app uninstaller. It helps you remove an application bundle together with related user-level files, while keeping the workflow simple, reviewable, and recoverable.
+<p align="center">
+  <img src="demo/logo.png" width="112" alt="AppDrop logo">
+</p>
+
+<p align="center">
+  <strong>A clean, native macOS app uninstaller.</strong>
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#screenshot">Screenshot</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#permissions">Permissions</a>
+</p>
+
+AppDrop helps you uninstall macOS apps with a simple, review-first workflow. Select an app, review related files, then move the app and selected leftovers to Trash.
+
+## Screenshot
+
+![AppDrop main interface](demo/main.png)
 
 ## Features
 
-- Native macOS interface built with Swift and SwiftUI
-- English and Simplified Chinese UI based on the system language
-- Scans installed apps only when the app list is opened or refreshed
-- Scans leftover files only after you select an app
-- Calculates app size after selection, keeping the initial app list fast
-- Moves selected items to Trash instead of deleting them permanently
-- Shows related user-level files such as preferences, caches, containers, logs, saved state, cookies, and support data
-- Shows system-level leftovers unchecked by default, so you can review and manually select them
-- Labels system-level leftovers by risk, including permission-required and high-risk items
-- Detects apps that appear to come from Homebrew Cask or Setapp and shows a source hint
-- Shows success and failure details after uninstall
-- Shows removable Apple apps while filtering protected system components
-- No background daemon, login item, menu bar agent, analytics, or network service
+- Native macOS app built with Swift and SwiftUI
+- Clean Apple-style interface with Chinese and English support
+- Fast app list: leftover files are scanned only after selecting an app
+- Moves items to Trash instead of permanently deleting them
+- Finds common leftovers such as preferences, caches, containers, logs, cookies, saved state, and support files
+- Shows system-level leftovers separately and keeps them unchecked by default
+- Marks higher-risk items so you can review before removing them
+- Detects Homebrew Cask and Setapp apps and shows helpful uninstall hints
+- Shows removable Apple apps while hiding protected system components
+- No background daemon, no login item, no analytics, no network service
 
-## Installation
+## Install
 
-Download the latest `AppDrop.app`, then drag it into `/Applications`.
+Download `AppDrop.dmg`, open it, then drag `AppDrop.app` into `Applications`.
 
-Because current builds are not signed or notarized, macOS Gatekeeper may prevent the app from opening after download. If you trust the downloaded file, remove the quarantine attribute with:
+Current builds are not signed or notarized. If macOS blocks the app after download, run:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/AppDrop.app
@@ -32,9 +48,9 @@ Then open AppDrop again.
 
 ## Permissions
 
-AppDrop works best with access to common Library folders where app leftovers are stored. If some locations are not readable, AppDrop may show a prompt recommending Full Disk Access.
+AppDrop can work without extra setup, but Full Disk Access makes leftover scanning more complete.
 
-To enable it manually:
+To enable it:
 
 1. Open `System Settings`
 2. Go to `Privacy & Security`
@@ -42,42 +58,37 @@ To enable it manually:
 4. Add and enable `AppDrop`
 5. Restart AppDrop
 
-When AppDrop uses Finder to move items to Trash, macOS may also ask for Automation permission. Allow it if you want Finder-based Trash fallback to work.
+macOS may also ask for permission to control Finder when AppDrop moves files to Trash. Allow it if you want Finder-based Trash fallback to work.
 
-## Usage
-
-1. Open AppDrop
-2. Select an app from the list
-3. Review the files found for that app
-4. Keep or uncheck any items you do not want to remove
-5. Click `Uninstall`
-6. Confirm moving the selected items to Trash
-
-If something looks wrong, restore the item from Trash before emptying it.
-
-## Build From Source
-
-Requirements:
-
-- macOS
-- Xcode 26 or later
-
-Build steps:
-
-1. Open `AppDrop.xcodeproj`
-2. Select the `AppDrop` scheme
-3. Choose `My Mac`
-4. Run with `Command + R`
-
-The app icon source is stored at `AppDrop/appdrop.icon`.
-
-## Safety Notes
+## Safety
 
 AppDrop is intentionally conservative:
 
-- It does not permanently delete files.
-- It does not automatically remove protected Apple/system apps.
+- It moves files to Trash.
+- It does not empty Trash.
 - It does not install privileged helpers.
-- It does not empty Trash for you.
+- It does not automatically remove protected system apps.
+- It asks you to review files before uninstalling.
 
-Review selected files carefully before uninstalling, especially when manually selecting system-level items.
+## Build
+
+Open `AppDrop.xcodeproj` in Xcode and run the `AppDrop` scheme.
+
+## Assets
+
+The README uses these image paths:
+
+- `demo/logo.png`
+- `demo/main.png`
+
+## Star History
+
+Replace `OWNER/AppDrop` with your GitHub repository path after publishing.
+
+<a href="https://www.star-history.com/#OWNER/AppDrop&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=OWNER/AppDrop&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=OWNER/AppDrop&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=OWNER/AppDrop&type=Date" />
+  </picture>
+</a>
