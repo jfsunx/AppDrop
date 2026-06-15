@@ -16,6 +16,7 @@ struct ResidualScanner {
         let library = home.appendingPathComponent("Library")
         let names = nameVariants(for: app.displayName)
         let bundleID = isReverseDNS(app.bundleIdentifier) ? app.bundleIdentifier : nil
+        let relatedBundleIDs = relatedBundleIdentifiers(for: app)
         var candidates: [Candidate] = []
 
         for name in names where name.count >= 2 {
@@ -60,7 +61,12 @@ struct ResidualScanner {
             ])
 
             candidates.append(contentsOf: byHostPreferences(bundleID: bundleID, library: library))
-            candidates.append(contentsOf: launchAgents(bundleID: bundleID, library: library))
+            candidates.append(contentsOf: launchPlists(
+                root: library.appendingPathComponent("LaunchAgents"),
+                app: app,
+                relatedBundleIDs: relatedBundleIDs,
+                category: "LaunchAgent"
+            ))
             candidates.append(contentsOf: boundaryMatchedChildren(root: library.appendingPathComponent("Group Containers"), bundleID: bundleID, category: "Group Container"))
             candidates.append(contentsOf: boundaryMatchedChildren(root: library.appendingPathComponent("Containers"), bundleID: bundleID, category: L10n.text("容器扩展", "Container Extension")))
             candidates.append(contentsOf: boundaryMatchedChildren(root: library.appendingPathComponent("Application Scripts"), bundleID: bundleID, category: L10n.text("脚本扩展", "Script Extension")))
@@ -75,6 +81,7 @@ struct ResidualScanner {
         guard isReverseDNS(app.bundleIdentifier) || app.displayName.count >= 2 else { return [] }
         let library = URL(fileURLWithPath: "/Library")
         let names = nameVariants(for: app.displayName)
+        let relatedBundleIDs = relatedBundleIdentifiers(for: app)
         var candidates: [Candidate] = []
 
         for name in names where name.count >= 2 {
@@ -88,7 +95,8 @@ struct ResidualScanner {
                 Candidate(library.appendingPathComponent("Input Methods/\(name).app"), L10n.text("系统输入法", "System Input Method"), riskLevel: .high),
                 Candidate(library.appendingPathComponent("QuickLook/\(name).qlgenerator"), L10n.text("系统 Quick Look", "System Quick Look"), riskLevel: .requiresAdmin),
                 Candidate(library.appendingPathComponent("PreferencePanes/\(name).prefPane"), L10n.text("系统偏好面板", "System Preference Pane"), riskLevel: .high),
-                Candidate(library.appendingPathComponent("Screen Savers/\(name).saver"), L10n.text("系统屏保", "System Screen Saver"), riskLevel: .requiresAdmin)
+                Candidate(library.appendingPathComponent("Screen Savers/\(name).saver"), L10n.text("系统屏保", "System Screen Saver"), riskLevel: .requiresAdmin),
+                Candidate(library.appendingPathComponent("StartupItems/\(name)"), L10n.text("启动项", "Startup Item"), riskLevel: .high)
             ])
         }
 
@@ -96,14 +104,40 @@ struct ResidualScanner {
             let bundleID = app.bundleIdentifier
             candidates.append(contentsOf: [
                 Candidate(library.appendingPathComponent("Application Support/\(bundleID)"), L10n.text("系统 Application Support", "System Application Support"), riskLevel: .requiresAdmin),
-                Candidate(library.appendingPathComponent("LaunchAgents/\(bundleID).plist"), L10n.text("系统 LaunchAgent", "System LaunchAgent"), riskLevel: .requiresAdmin),
-                Candidate(library.appendingPathComponent("LaunchDaemons/\(bundleID).plist"), L10n.text("系统 LaunchDaemon", "System LaunchDaemon"), riskLevel: .high),
                 Candidate(library.appendingPathComponent("Preferences/\(bundleID).plist"), L10n.text("系统偏好", "System Preferences"), riskLevel: .requiresAdmin),
                 Candidate(library.appendingPathComponent("Receipts/\(bundleID).bom"), L10n.text("安装收据", "Install Receipt"), riskLevel: .requiresAdmin),
                 Candidate(library.appendingPathComponent("Receipts/\(bundleID).plist"), L10n.text("安装收据", "Install Receipt"), riskLevel: .requiresAdmin),
                 Candidate(library.appendingPathComponent("Caches/\(bundleID)"), L10n.text("系统缓存", "System Caches"), riskLevel: .requiresAdmin),
                 Candidate(library.appendingPathComponent("Logs/\(bundleID)"), L10n.text("系统日志", "System Logs"), riskLevel: .requiresAdmin)
             ])
+
+            for relatedID in relatedBundleIDs {
+                candidates.append(contentsOf: [
+                    Candidate(library.appendingPathComponent("PrivilegedHelperTools/\(relatedID)"), L10n.text("特权后台工具", "Privileged Helper Tool"), riskLevel: .high),
+                    Candidate(library.appendingPathComponent("StartupItems/\(relatedID)"), L10n.text("启动项", "Startup Item"), riskLevel: .high)
+                ])
+            }
+
+            candidates.append(contentsOf: launchPlists(
+                root: library.appendingPathComponent("LaunchAgents"),
+                app: app,
+                relatedBundleIDs: relatedBundleIDs,
+                category: L10n.text("系统 LaunchAgent", "System LaunchAgent"),
+                riskLevel: .requiresAdmin
+            ))
+            candidates.append(contentsOf: launchPlists(
+                root: library.appendingPathComponent("LaunchDaemons"),
+                app: app,
+                relatedBundleIDs: relatedBundleIDs,
+                category: L10n.text("系统 LaunchDaemon", "System LaunchDaemon"),
+                riskLevel: .high
+            ))
+            candidates.append(contentsOf: boundaryMatchedChildren(
+                root: library.appendingPathComponent("PrivilegedHelperTools"),
+                bundleIDs: relatedBundleIDs,
+                category: L10n.text("特权后台工具", "Privileged Helper Tool"),
+                riskLevel: .high
+            ))
         }
 
         candidates.append(contentsOf: diagnosticReports(
@@ -154,15 +188,19 @@ struct ResidualScanner {
             .map { Candidate($0, L10n.text("ByHost 偏好", "ByHost Preferences")) }
     }
 
-    private func launchAgents(bundleID: String, library: URL) -> [Candidate] {
-        let root = library.appendingPathComponent("LaunchAgents")
+    private func launchPlists(
+        root: URL,
+        app: AppRecord,
+        relatedBundleIDs: Set<String>,
+        category: String,
+        riskLevel: ResidualRiskLevel = .normal
+    ) -> [Candidate] {
         guard let children = try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return [] }
         return children
             .filter {
-                let name = $0.deletingPathExtension().lastPathComponent
-                return $0.pathExtension == "plist" && (name == bundleID || name.hasPrefix(bundleID + "."))
+                $0.pathExtension == "plist" && launchPlistLooksRelated($0, app: app, relatedBundleIDs: relatedBundleIDs)
             }
-            .map { Candidate($0, "LaunchAgent") }
+            .map { Candidate($0, category, riskLevel: riskLevel) }
     }
 
     private func boundaryMatchedChildren(root: URL, bundleID: String, category: String) -> [Candidate] {
@@ -170,6 +208,21 @@ struct ResidualScanner {
         return children
             .filter { nameHasBundleBoundary($0.lastPathComponent, bundleID: bundleID) }
             .map { Candidate($0, category) }
+    }
+
+    private func boundaryMatchedChildren(
+        root: URL,
+        bundleIDs: Set<String>,
+        category: String,
+        riskLevel: ResidualRiskLevel
+    ) -> [Candidate] {
+        guard !bundleIDs.isEmpty else { return [] }
+        guard let children = try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return [] }
+        return children
+            .filter { child in
+                bundleIDs.contains { nameHasBundleBoundary(child.lastPathComponent, bundleID: $0) }
+            }
+            .map { Candidate($0, category, riskLevel: riskLevel) }
     }
 
     private func sharedFileLists(bundleID: String, library: URL) -> [Candidate] {
@@ -184,6 +237,172 @@ struct ResidualScanner {
         }
 
         return result
+    }
+
+    private func launchPlistLooksRelated(_ url: URL, app: AppRecord, relatedBundleIDs: Set<String>) -> Bool {
+        let label = url.deletingPathExtension().lastPathComponent
+        if relatedBundleIDs.contains(where: { nameHasBundleBoundary(label, bundleID: $0) }) {
+            return true
+        }
+
+        let strings = plistStrings(at: url)
+        guard !strings.isEmpty else { return false }
+
+        let appPath = app.url.standardizedFileURL.path
+        if strings.contains(where: { $0 == appPath || $0.hasPrefix(appPath + "/") }) {
+            return true
+        }
+
+        if relatedBundleIDs.contains(where: { bundleID in
+            let lowercasedBundleID = bundleID.lowercased()
+            return strings.contains { string in
+                let lowercasedString = string.lowercased()
+                return lowercasedString == lowercasedBundleID || lowercasedString.contains(lowercasedBundleID)
+            }
+        }) {
+            return true
+        }
+
+        let appBundleNames = nameVariants(for: app.displayName)
+            .filter { $0.count >= 3 }
+            .map { "\($0).app" }
+        return strings.contains { string in
+            appBundleNames.contains { appName in
+                string == appName || string.contains("/\(appName)/") || string.hasSuffix("/\(appName)")
+            }
+        }
+    }
+
+    private func relatedBundleIdentifiers(for app: AppRecord) -> Set<String> {
+        var identifiers = Set<String>()
+        if isReverseDNS(app.bundleIdentifier) {
+            identifiers.insert(app.bundleIdentifier)
+        }
+
+        for infoURL in appInfoPlistURLs(for: app.url) {
+            guard let info = plistDictionary(at: infoURL) else { continue }
+            addRelatedIdentifiers(from: info, to: &identifiers)
+        }
+
+        guard fileManager.fileExists(atPath: app.url.path) else { return identifiers }
+        guard let enumerator = fileManager.enumerator(
+            at: app.url,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles],
+            errorHandler: nil
+        ) else {
+            return identifiers
+        }
+
+        for case let url as URL in enumerator where shouldReadRelatedBundleInfoPlist(url, appURL: app.url) {
+            guard let info = plistDictionary(at: url) else { continue }
+            addRelatedIdentifiers(from: info, to: &identifiers)
+        }
+
+        return identifiers
+    }
+
+    private func appInfoPlistURLs(for appURL: URL) -> [URL] {
+        [
+            appURL.appendingPathComponent("Contents/Info.plist"),
+            appURL.appendingPathComponent("Info.plist")
+        ]
+    }
+
+    private func shouldReadRelatedBundleInfoPlist(_ url: URL, appURL: URL) -> Bool {
+        guard url.lastPathComponent == "Info.plist" else { return false }
+
+        let standardizedURL = url.standardizedFileURL
+        if appInfoPlistURLs(for: appURL.standardizedFileURL).contains(standardizedURL) {
+            return true
+        }
+
+        let bundleURL = standardizedURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let bundleExtensions = ["app", "xpc", "appex", "plugin"]
+        return bundleExtensions.contains(bundleURL.pathExtension)
+    }
+
+    private func addRelatedIdentifiers(from info: [String: Any], to identifiers: inout Set<String>) {
+        if let bundleID = info["CFBundleIdentifier"] as? String, isReverseDNS(bundleID) {
+            identifiers.insert(bundleID)
+        }
+
+        if let privilegedExecutables = info["SMPrivilegedExecutables"] as? [String: String] {
+            for (identifier, requirement) in privilegedExecutables {
+                if isReverseDNS(identifier) {
+                    identifiers.insert(identifier)
+                }
+                for token in reverseDNSIdentifiers(in: requirement) {
+                    identifiers.insert(token)
+                }
+            }
+        }
+
+        if let loginItems = info["SMLoginItemIdentifiers"] as? [String] {
+            for identifier in loginItems where isReverseDNS(identifier) {
+                identifiers.insert(identifier)
+            }
+        }
+    }
+
+    private func reverseDNSIdentifiers(in string: String) -> [String] {
+        let pattern = #"[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*)+"#
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(string.startIndex..<string.endIndex, in: string)
+        return expression.matches(in: string, range: range).compactMap { match in
+            guard let matchRange = Range(match.range, in: string) else { return nil }
+            let value = String(string[matchRange])
+            return isReverseDNS(value) ? value : nil
+        }
+    }
+
+    private func plistDictionary(at url: URL) -> [String: Any]? {
+        guard
+            let data = try? Data(contentsOf: url),
+            let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil),
+            let dictionary = plist as? [String: Any]
+        else {
+            return nil
+        }
+
+        return dictionary
+    }
+
+    private func plistStrings(at url: URL) -> [String] {
+        guard
+            let data = try? Data(contentsOf: url),
+            let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil)
+        else {
+            return []
+        }
+
+        var strings: [String] = []
+        collectStrings(from: plist, into: &strings)
+        return strings
+    }
+
+    private func collectStrings(from value: Any, into strings: inout [String]) {
+        if let string = value as? String {
+            strings.append(string)
+        } else if let array = value as? [Any] {
+            for item in array {
+                collectStrings(from: item, into: &strings)
+            }
+        } else if let dictionary = value as? [String: Any] {
+            for (key, item) in dictionary {
+                strings.append(key)
+                collectStrings(from: item, into: &strings)
+            }
+        } else if let dictionary = value as? NSDictionary {
+            for (key, item) in dictionary {
+                if let key = key as? String {
+                    strings.append(key)
+                }
+                collectStrings(from: item, into: &strings)
+            }
+        }
     }
 
     private func diagnosticReports(
@@ -234,13 +453,18 @@ struct ResidualScanner {
 
     private func isReverseDNS(_ value: String) -> Bool {
         let pattern = #"^[A-Za-z0-9][A-Za-z0-9-]*(\.[A-Za-z0-9][A-Za-z0-9-]*)+$"#
-        return value.range(of: pattern, options: .regularExpression) != nil
+        guard value.range(of: pattern, options: .regularExpression) != nil else { return false }
+        return value.contains { $0.isLetter }
     }
 
     private func nameHasBundleBoundary(_ name: String, bundleID: String) -> Bool {
-        guard name.contains(bundleID) else { return false }
-        if name == bundleID { return true }
-        return name.hasPrefix(bundleID + ".") || name.hasPrefix(bundleID + "-") || name.hasSuffix("." + bundleID)
+        let normalizedName = name.lowercased()
+        let normalizedBundleID = bundleID.lowercased()
+        guard normalizedName.contains(normalizedBundleID) else { return false }
+        if normalizedName == normalizedBundleID { return true }
+        return normalizedName.hasPrefix(normalizedBundleID + ".") ||
+            normalizedName.hasPrefix(normalizedBundleID + "-") ||
+            normalizedName.hasSuffix("." + normalizedBundleID)
     }
 
     private func isSafeUserCandidate(_ url: URL) -> Bool {

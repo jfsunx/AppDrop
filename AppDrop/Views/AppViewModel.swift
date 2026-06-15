@@ -12,7 +12,13 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var lastResult: UninstallResult?
     @Published private(set) var permissionStatus = PermissionStatus.allowed
     @Published var searchText = ""
-    @Published var selectedAppID: AppRecord.ID?
+    @Published var selectedAppID: AppRecord.ID? {
+        didSet {
+            if selectedAppID != oldValue {
+                lastResult = nil
+            }
+        }
+    }
     @Published var selectedResidualIDs = Set<ResidualItem.ID>()
 
     private let appScanner = ApplicationScanner()
@@ -70,6 +76,10 @@ final class AppViewModel: ObservableObject {
         permissionCheckedAt = Date()
     }
 
+    func dismissLastResult() {
+        lastResult = nil
+    }
+
     func preparePlanForSelection() async {
         guard let app = selectedApp else {
             planScanToken = UUID()
@@ -83,6 +93,7 @@ final class AppViewModel: ObservableObject {
         planScanToken = token
         isPlanning = true
         message = nil
+        lastResult = nil
         plan = nil
         selectedResidualIDs.removeAll()
         let nextPlan = await residualScanner.makePlan(for: app)
@@ -108,31 +119,14 @@ final class AppViewModel: ObservableObject {
             let selectedResiduals = currentPlan.selectedResiduals(selectedResidualIDs)
             let result = try await uninstallService.uninstall(currentPlan, selectedResiduals: selectedResiduals)
 
-            let statusMessage: String
-            if result.failed.isEmpty {
-                statusMessage = L10n.text(
-                    "已移到废纸篓：\(result.trashed.count) 项",
-                    "Moved to Trash: \(result.trashed.count) item(s)"
-                )
-            } else if let firstFailure = result.failed.first {
-                statusMessage = L10n.text(
-                    "部分项目未能移到废纸篓：\(result.failed.count) 项。\(firstFailure.0.lastPathComponent)：\(firstFailure.1)",
-                    "Some items could not be moved to Trash: \(result.failed.count). \(firstFailure.0.lastPathComponent): \(firstFailure.1)"
-                )
-            } else {
-                statusMessage = L10n.text(
-                    "部分项目未能移到废纸篓：\(result.failed.count) 项",
-                    "Some items could not be moved to Trash: \(result.failed.count)"
-                )
-            }
-
             await refresh(clearSelection: true)
             selectedAppID = nil
             plan = nil
             selectedResidualIDs.removeAll()
             lastResult = result
-            message = statusMessage
+            message = nil
         } catch {
+            lastResult = nil
             message = error.localizedDescription
         }
     }

@@ -107,14 +107,17 @@ struct ContentView: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
-
-                    if let result = model.lastResult {
-                        UninstallResultView(result: result)
-                    }
                 }
                 .padding(28)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+        } else if let result = model.lastResult {
+            VStack {
+                UninstallResultView(result: result, dismiss: { model.dismissLastResult() })
+                    .frame(maxWidth: 560)
+            }
+            .padding(28)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack(spacing: 16) {
                 ContentUnavailableView(L10n.text("选择一个应用", "Select an App"), systemImage: "square.stack.3d.up")
@@ -123,11 +126,6 @@ struct ContentView: View {
                     Text(message)
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                }
-
-                if let result = model.lastResult {
-                    UninstallResultView(result: result)
-                        .frame(maxWidth: 520)
                 }
             }
             .padding(28)
@@ -380,11 +378,20 @@ private struct RiskBadge: View {
 
 private struct UninstallResultView: View {
     let result: UninstallResult
+    let dismiss: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.text("卸载结果", "Uninstall Result"))
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L10n.text("卸载结果", "Uninstall Result"))
+                    .font(.headline)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Label(L10n.text("确认", "OK"), systemImage: "checkmark")
+                }
+            }
 
             if !result.trashed.isEmpty {
                 Label(L10n.text("已移到废纸篓：\(result.trashed.count) 项", "Moved to Trash: \(result.trashed.count) item(s)"), systemImage: "checkmark.circle")
@@ -392,25 +399,50 @@ private struct UninstallResultView: View {
             }
 
             if !result.failed.isEmpty {
-                Label(L10n.text("失败：\(result.failed.count) 项", "Failed: \(result.failed.count) item(s)"), systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
+                ResultIssueList(
+                    title: L10n.text("失败：\(result.failed.count) 项", "Failed: \(result.failed.count) item(s)"),
+                    symbol: "exclamationmark.triangle",
+                    tint: .orange,
+                    items: result.failed
+                )
+            }
 
-                ForEach(Array(result.failed.prefix(5)), id: \.0) { failure in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(failure.0.path)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Text(failure.1)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                }
+            if !result.warnings.isEmpty {
+                ResultIssueList(
+                    title: L10n.text("提醒：\(result.warnings.count) 项", "Warnings: \(result.warnings.count) item(s)"),
+                    symbol: "info.circle",
+                    tint: .secondary,
+                    items: result.warnings
+                )
             }
         }
         .padding(12)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct ResultIssueList: View {
+    let title: String
+    let symbol: String
+    let tint: Color
+    let items: [(URL, String)]
+
+    var body: some View {
+        Label(title, systemImage: symbol)
+            .foregroundStyle(tint)
+
+        ForEach(Array(items.prefix(5)), id: \.0) { item in
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.0.path)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(item.1)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
     }
 }
 

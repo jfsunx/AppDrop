@@ -144,4 +144,5 @@ struct UninstallPlan: Hashable {
 struct UninstallResult {
     let trashed: [URL]
     let failed: [(URL, String)]
+    let warnings: [(URL, String)]
 }
