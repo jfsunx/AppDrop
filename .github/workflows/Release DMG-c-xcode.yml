@@ -1,0 +1,85 @@
+name: Release DMG
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-dmg:
+    name: Build and upload DMG
+    runs-on: macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show build environment
+        run: |
+          sw_vers
+          xcodebuild -version
+
+      - name: Build release app
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project AppDrop.xcodeproj \
+            -scheme AppDrop \
+            -configuration Release \
+            -derivedDataPath "$PWD/build/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Create DMG
+        run: |
+          set -euo pipefail
+
+          APP_NAME="AppDrop"
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$VERSION" = "$GITHUB_REF_NAME" ]; then
+            VERSION="manual-${GITHUB_RUN_NUMBER}"
+          fi
+
+          APP_PATH="$PWD/build/DerivedData/Build/Products/Release/${APP_NAME}.app"
+          STAGING_DIR="$RUNNER_TEMP/${APP_NAME}-dmg"
+          DIST_DIR="$PWD/dist"
+          DMG_PATH="$DIST_DIR/${APP_NAME}-${VERSION}.dmg"
+
+          test -d "$APP_PATH"
+          rm -rf "$STAGING_DIR" "$DIST_DIR"
+          mkdir -p "$STAGING_DIR" "$DIST_DIR"
+
+          ditto "$APP_PATH" "$STAGING_DIR/${APP_NAME}.app"
+          ln -s /Applications "$STAGING_DIR/Applications"
+
+          hdiutil create \
+            -volname "$APP_NAME" \
+            -srcfolder "$STAGING_DIR" \
+            -format UDZO \
+            -ov \
+            "$DMG_PATH"
+
+          shasum -a 256 "$DMG_PATH" > "$DMG_PATH.sha256"
+
+      - name: Upload DMG to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="$GITHUB_REF_NAME"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG_NAME="manual-${GITHUB_RUN_NUMBER}"
+          fi
+
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" \
+              --title "$TAG_NAME" \
+              --notes "Automated AppDrop build."
+          fi
+
+          gh release upload "$TAG_NAME" dist/*.dmg dist/*.sha256 --clobber
